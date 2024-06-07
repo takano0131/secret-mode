@@ -1,64 +1,109 @@
-function detectIncognitoMode(callback) {
-  const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+function setResult(message) {
+  document.getElementById('result').innerText = message;
+}
+
+function testFileSystemAPI() {
+  const fs = window.RequestFileSystem || window.webkitRequestFileSystem;
+  if (!fs) {
+      setResult('FileSystem APIがサポートされていません。');
+      return;
+  }
+  fs(window.TEMPORARY, 100, () => setResult('通常モードです。'), () => setResult('シークレットモードです。'));
+}
+
+function testIndexedDB() {
+  var db;
+  var on = () => setResult('シークレットモードです。');
+  var off = () => setResult('通常モードです。');
+  var tryCatch = (func) => {
+      try {
+          return func();
+      } catch (e) {
+          return on();
+      }
+  };
+
+  if (window.indexedDB && /Chrome/.test(navigator.userAgent)) {
+      tryCatch(() => {
+          db = indexedDB.open("test");
+          db.onerror = on;
+          db.onsuccess = off;
+      });
+  } else if (window.indexedDB) {
+      tryCatch(() => {
+          db = indexedDB.open("test");
+          db.onerror = off;
+          db.onsuccess = off;
+      });
+  } else {
+      on();
+  }
+}
+
+function testQuotaManagement() {
+  if (navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then(estimate => {
+          if (estimate.quota < 120000000) {
+              setResult('シークレットモードです。');
+          } else {
+              setResult('通常モードです。');
+          }
+      });
+  } else {
+      setResult('Quota Management APIがサポートされていません。');
+  }
+}
+
+function testSafari() {
+  const on = () => setResult('シークレットモードです。');
+  const off = () => setResult('通常モードです。');
+
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if (isSafari) {
+      try {
+          window.openDatabase(null, null, null, null);
+          off();
+      } catch (_) {
+          on();
+      }
+  } else {
+      setResult('Safariブラウザではありません。');
+  }
+}
+
+function testComprehensive() {
+  const ua = navigator.userAgent;
+  const isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
   
   if (isChrome) {
       const fs = window.RequestFileSystem || window.webkitRequestFileSystem;
       if (!fs) {
-          callback(false); // 旧バージョンのChrome
+          setResult('通常モードです。');
       } else {
-          fs(window.TEMPORARY, 100, () => callback(false), () => callback(true));
+          fs(window.TEMPORARY, 100, () => setResult('通常モードです。'), () => setResult('シークレットモードです。'));
       }
-  } else {
-      // 他のブラウザ用の検出ロジック
-      detectNonChromeIncognitoMode(callback);
-  }
-}
-
-function detectNonChromeIncognitoMode(callback) {
-  const on = () => callback(true); // シークレットモード
-  const off = () => callback(false); // 通常モード
-
-  const testLocalStorage = () => {
+  } else if (isSafari) {
       try {
-          if (window.localStorage) {
-              window.localStorage.setItem('test', '1');
-              window.localStorage.removeItem('test');
-              off();
+          window.openDatabase(null, null, null, null);
+          setResult('通常モードです。');
+      } catch (_) {
+          setResult('シークレットモードです。');
+      }
+  } else if (navigator.storage && navigator.storage.estimate) {
+      navigator.storage.estimate().then(estimate => {
+          if (estimate.quota < 120000000) {
+              setResult('シークレットモードです。');
           } else {
-              on();
+              setResult('通常モードです。');
           }
-      } catch (e) {
-          on();
-      }
-  };
-
-  const ua = navigator.userAgent;
-  const isSafari = /Safari/i.test(ua) && !/Chrome/i.test(ua);
-  const isMobile = /Mobile|Android|iP(ad|hone)/i.test(ua);
-
-  if (isSafari) {
-      let test = () => {
-          try {
-              window.openDatabase(null, null, null, null);
-              off();
-          } catch (e) {
-              on();
-          }
-      };
-      if (isMobile) {
-          setTimeout(test, 100); // モバイルSafariのために少し待つ
-      } else {
-          test();
-      }
+      });
+  } else if (window.indexedDB) {
+      const db = indexedDB.open("test");
+      db.onerror = () => setResult('シークレットモードです。');
+      db.onsuccess = () => setResult('通常モードです。');
   } else {
-      testLocalStorage();
+      setResult('通常モードです。');
   }
 }
-
-detectIncognitoMode((isInIncognito) => {
-  if (isInIncognito) {
-      console.log('シークレットモードです。');
-  } else {
-      console.log('通常モードです。');
-  }
-});

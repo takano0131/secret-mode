@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シークレットモード検知2</title>
+    <title>シークレットモード検知</title>
+    <script src="index.js" defer></script>
 </head>
 <body>
     <h1>シークレットモード検知</h1>
-    <script src="index.js"></script>
+    <button onclick="testFileSystemAPI()">FileSystem APIで検知</button>
+    <button onclick="testIndexedDB()">IndexedDBで検知</button>
+    <button onclick="testQuotaManagement()">Quota Management APIで検知</button>
+    <button onclick="testSafari()">Safari固有の特徴で検知</button>
+    <button onclick="testComprehensive()">総合的な方法で検知</button>
+    <div id="result"></div>
 </body>
 </html>
